@@ -44,49 +44,53 @@
             const intervalInput = row.querySelector(".interval");
             const nextTimeOutput = row.querySelector(".next-time");
 
-            const currentTime = currentTimeInput.value;
             const interval = parseInt(intervalInput.value, 10);
 
-            if (!currentTime || isNaN(interval)) {
+            if (!currentTimeInput.value || isNaN(interval)) {
                 nextTimeOutput.textContent = "Некорректные данные";
                 return;
             }
 
-            const [hours, minutes] = currentTime.split(":").map(Number);
-            const currentDate = new Date();
-            currentDate.setHours(hours, minutes, 0);
+            let [hours, minutes] = currentTimeInput.value.split(":").map(Number);
+            const initialTime = new Date();
+            initialTime.setHours(hours, minutes, 0);
 
-            currentDate.setMinutes(currentDate.getMinutes() + interval);
+            const nextTime = new Date(initialTime.getTime() + interval * 60 * 1000);
+            updateTimeDisplay(nextTime, nextTimeOutput);
 
-            const nextHours = String(currentDate.getHours()).padStart(2, "0");
-            const nextMinutes = String(currentDate.getMinutes()).padStart(2, "0");
-
-            nextTimeOutput.textContent = `${nextHours}:${nextMinutes}`;
-
-            // Запускаем синхронизацию времени
-            startAutoSync(row, interval);
+            // Начинаем процесс синхронизации
+            startSync(row, interval);
         }
 
-        function startAutoSync(row, interval) {
+        function startSync(row, interval) {
+            const currentTimeInput = row.querySelector(".current-time");
             const nextTimeOutput = row.querySelector(".next-time");
 
-            setInterval(() => {
-                const currentTime = new Date();
-                const nextDate = new Date();
+            setTimeout(() => {
+                const systemTime = new Date();
+                systemTime.setMinutes(systemTime.getMinutes() + 2); // Системное время +2 минуты
+                const newNextTime = new Date(systemTime.getTime() + interval * 60 * 1000);
 
-                const [nextHours, nextMinutes] = nextTimeOutput.textContent.split(":").map(Number);
-                nextDate.setHours(nextHours, nextMinutes, 0);
+                updateTimeDisplay(systemTime, currentTimeInput); // Обновляем "Текущее время"
+                updateTimeDisplay(newNextTime, nextTimeOutput); // Обновляем "Следующее время"
 
-                // Если текущее время >= следующего, добавляем интервал
-                if (currentTime >= nextDate) {
-                    nextDate.setMinutes(nextDate.getMinutes() + interval);
+                // Повторяем процесс каждые interval минут
+                setInterval(() => {
+                    const newSystemTime = new Date();
+                    newSystemTime.setMinutes(newSystemTime.getMinutes() + 2);
+                    const updatedNextTime = new Date(newSystemTime.getTime() + interval * 60 * 1000);
 
-                    const updatedHours = String(nextDate.getHours()).padStart(2, "0");
-                    const updatedMinutes = String(nextDate.getMinutes()).padStart(2, "0");
+                    updateTimeDisplay(newSystemTime, currentTimeInput);
+                    updateTimeDisplay(updatedNextTime, nextTimeOutput);
+                }, interval * 60 * 1000);
+            }, interval * 60 * 1000);
+        }
 
-                    nextTimeOutput.textContent = `${updatedHours}:${updatedMinutes}`;
-                }
-            }, 2000); // Проверяем каждые 2 секунды
+        function updateTimeDisplay(time, element) {
+            const hours = String(time.getHours()).padStart(2, "0");
+            const minutes = String(time.getMinutes()).padStart(2, "0");
+            element.value = `${hours}:${minutes}`;
+            element.textContent = `${hours}:${minutes}`;
         }
 
         function addRow() {
@@ -95,8 +99,8 @@
 
             row.innerHTML = `
                 <td><input type="text" class="name" placeholder="Название"></td>
-                <td><input type="time" class="current-time" value="${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}"></td>
-                <td><input type="number" class="interval" placeholder="Интервал"></td>
+                <td><input type="time" class="current-time"></td>
+                <td><input type="number" class="interval" placeholder="Интервал (мин)" /></td>
                 <td class="next-time">--:--</td>
                 <td><button class="btn" onclick="calculateNextTime(this.closest('tr'))">Рассчитать</button></td>
             `;
@@ -119,8 +123,8 @@
         <tbody id="time-table">
             <tr>
                 <td><input type="text" class="name" placeholder="Название"></td>
-                <td><input type="time" class="current-time" value="${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}"></td>
-                <td><input type="number" class="interval" placeholder="Интервал"></td>
+                <td><input type="time" class="current-time"></td>
+                <td><input type="number" class="interval" placeholder="Интервал (мин)" /></td>
                 <td class="next-time">--:--</td>
                 <td><button class="btn" onclick="calculateNextTime(this.closest('tr'))">Рассчитать</button></td>
             </tr>
