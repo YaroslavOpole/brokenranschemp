@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Калькулятор времени</title>
+    <title>Калькулятор времени с синхронизацией</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -62,6 +62,31 @@
             const nextMinutes = String(currentDate.getMinutes()).padStart(2, "0");
 
             nextTimeOutput.textContent = `${nextHours}:${nextMinutes}`;
+
+            // Запускаем синхронизацию времени
+            startAutoSync(row, interval);
+        }
+
+        function startAutoSync(row, interval) {
+            const nextTimeOutput = row.querySelector(".next-time");
+
+            setInterval(() => {
+                const currentTime = new Date();
+                const nextDate = new Date();
+
+                const [nextHours, nextMinutes] = nextTimeOutput.textContent.split(":").map(Number);
+                nextDate.setHours(nextHours, nextMinutes, 0);
+
+                // Если текущее время >= следующего, добавляем интервал
+                if (currentTime >= nextDate) {
+                    nextDate.setMinutes(nextDate.getMinutes() + interval);
+
+                    const updatedHours = String(nextDate.getHours()).padStart(2, "0");
+                    const updatedMinutes = String(nextDate.getMinutes()).padStart(2, "0");
+
+                    nextTimeOutput.textContent = `${updatedHours}:${updatedMinutes}`;
+                }
+            }, 2000); // Проверяем каждые 2 секунды
         }
 
         function addRow() {
@@ -80,7 +105,7 @@
     </script>
 </head>
 <body>
-    <h1>Калькулятор времени</h1>
+    <h1>Калькулятор времени с синхронизацией</h1>
     <table>
         <thead>
             <tr>
