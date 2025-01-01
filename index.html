@@ -37,6 +37,12 @@
         .btn:hover {
             background-color: #45a049;
         }
+        .btn.stop {
+            background-color: #f44336;
+        }
+        .btn.stop:hover {
+            background-color: #e53935;
+        }
     </style>
     <script>
         function calculateNextTime(row) {
@@ -65,25 +71,35 @@
         function startSync(row, interval) {
             const currentTimeInput = row.querySelector(".current-time");
             const nextTimeOutput = row.querySelector(".next-time");
+            const stopButton = row.querySelector(".stop-sync");
+            
+            // Очищаем предыдущий интервал, если он существует
+            if (row.syncIntervalId) {
+                clearInterval(row.syncIntervalId);
+            }
 
-            setTimeout(() => {
+            row.syncIntervalId = setInterval(() => {
                 const systemTime = new Date();
-                systemTime.setMinutes(systemTime.getMinutes() + 2); // Системное время +2 минуты
                 const newNextTime = new Date(systemTime.getTime() + interval * 60 * 1000);
 
                 updateTimeDisplay(systemTime, currentTimeInput); // Обновляем "Текущее время"
                 updateTimeDisplay(newNextTime, nextTimeOutput); // Обновляем "Следующее время"
-
-                // Повторяем процесс каждые interval минут
-                setInterval(() => {
-                    const newSystemTime = new Date();
-                    newSystemTime.setMinutes(newSystemTime.getMinutes() + 2);
-                    const updatedNextTime = new Date(newSystemTime.getTime() + interval * 60 * 1000);
-
-                    updateTimeDisplay(newSystemTime, currentTimeInput);
-                    updateTimeDisplay(updatedNextTime, nextTimeOutput);
-                }, interval * 60 * 1000);
             }, interval * 60 * 1000);
+
+            // Показываем кнопку остановки
+            stopButton.style.display = "inline-block";
+        }
+
+        function stopSync(row) {
+            const stopButton = row.querySelector(".stop-sync");
+            
+            if (row.syncIntervalId) {
+                clearInterval(row.syncIntervalId);
+                row.syncIntervalId = null;
+            }
+
+            // Скрываем кнопку остановки
+            stopButton.style.display = "none";
         }
 
         function updateTimeDisplay(time, element) {
@@ -102,8 +118,12 @@
                 <td><input type="time" class="current-time"></td>
                 <td><input type="number" class="interval" placeholder="Интервал (мин)" /></td>
                 <td class="next-time">--:--</td>
-                <td><button class="btn" onclick="calculateNextTime(this.closest('tr'))">Рассчитать</button></td>
+                <td>
+                    <button class="btn start-sync" onclick="calculateNextTime(this.closest('tr'))">Рассчитать</button>
+                    <button class="btn stop stop-sync" style="display:none;" onclick="stopSync(this.closest('tr'))">Отключить</button>
+                </td>
             `;
+
             table.appendChild(row);
         }
     </script>
@@ -126,7 +146,10 @@
                 <td><input type="time" class="current-time"></td>
                 <td><input type="number" class="interval" placeholder="Интервал (мин)" /></td>
                 <td class="next-time">--:--</td>
-                <td><button class="btn" onclick="calculateNextTime(this.closest('tr'))">Рассчитать</button></td>
+                <td>
+                    <button class="btn start-sync" onclick="calculateNextTime(this.closest('tr'))">Рассчитать</button>
+                    <button class="btn stop stop-sync" style="display:none;" onclick="stopSync(this.closest('tr'))">Отключить</button>
+                </td>
             </tr>
         </tbody>
     </table>
