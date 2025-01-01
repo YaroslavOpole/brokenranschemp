@@ -43,6 +43,12 @@
         .btn.stop:hover {
             background-color: #e53935;
         }
+        .next-time {
+            transition: background-color 0.3s ease;
+        }
+        .next-time.green {
+            background-color: #d4edda;
+        }
     </style>
     <script>
         function calculateNextTime(row) {
@@ -72,7 +78,7 @@
             const currentTimeInput = row.querySelector(".current-time");
             const nextTimeOutput = row.querySelector(".next-time");
             const stopButton = row.querySelector(".stop-sync");
-            
+
             // Очищаем предыдущий интервал, если он существует
             if (row.syncIntervalId) {
                 clearInterval(row.syncIntervalId);
@@ -80,11 +86,19 @@
 
             row.syncIntervalId = setInterval(() => {
                 const systemTime = new Date();
-                const newNextTime = new Date(systemTime.getTime() + interval * 60 * 1000);
+                const nextTime = new Date(systemTime.getTime() + interval * 60 * 1000);
 
-                updateTimeDisplay(systemTime, currentTimeInput); // Обновляем "Текущее время"
-                updateTimeDisplay(newNextTime, nextTimeOutput); // Обновляем "Следующее время"
-            }, interval * 60 * 1000);
+                updateTimeDisplay(systemTime, currentTimeInput);
+                updateTimeDisplay(nextTime, nextTimeOutput);
+
+                // Проверяем, осталось ли 5 минут до следующего времени
+                const timeDifference = Math.floor((nextTime - systemTime) / (60 * 1000));
+                if (timeDifference <= 5) {
+                    nextTimeOutput.classList.add("green");
+                } else {
+                    nextTimeOutput.classList.remove("green");
+                }
+            }, 1000); // Проверяем каждую секунду для обновления состояния
 
             // Показываем кнопку остановки
             stopButton.style.display = "inline-block";
@@ -92,7 +106,7 @@
 
         function stopSync(row) {
             const stopButton = row.querySelector(".stop-sync");
-            
+
             if (row.syncIntervalId) {
                 clearInterval(row.syncIntervalId);
                 row.syncIntervalId = null;
@@ -105,7 +119,6 @@
         function updateTimeDisplay(time, element) {
             const hours = String(time.getHours()).padStart(2, "0");
             const minutes = String(time.getMinutes()).padStart(2, "0");
-            element.value = `${hours}:${minutes}`;
             element.textContent = `${hours}:${minutes}`;
         }
 
