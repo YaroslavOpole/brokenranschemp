@@ -3,11 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Калькулятор времени с синхронизацией</title>
+    <title>Калькулятор времени</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        .btn {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn.stop {
+            background-color: #f44336;
+        }
+        .btn.stop:hover {
+            background-color: #e53935;
+        }
+        .error {
+            color: red;
         }
         table {
             width: 100%;
@@ -27,30 +49,148 @@
         input[type="text"] {
             width: 120px;
         }
-        .btn {
-            padding: 10px 15px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
+        .instructions {
+            margin-top: 20px;
+            font-size: 14px;
+            line-height: 1.6;
         }
-        .btn:hover {
-            background-color: #45a049;
-        }
-        .btn.stop {
-            background-color: #f44336;
-        }
-        .btn.stop:hover {
-            background-color: #e53935;
-        }
-        .next-time {
-            transition: background-color 0.3s ease;
-        }
-        .next-time.green {
-            background-color: #d4edda;
+        .instructions h3 {
+            margin-bottom: 10px;
         }
     </style>
     <script>
+        let currentUser = null;
+
+        // Регистрация пользователя
+        function registerUser() {
+            const username = document.getElementById("reg-username").value.trim();
+            const password = document.getElementById("reg-password").value.trim();
+            const errorMsg = document.getElementById("reg-error");
+
+            if (!username || !password) {
+                errorMsg.textContent = "Введите имя пользователя и пароль.";
+                return;
+            }
+
+            const users = JSON.parse(localStorage.getItem("users")) || {};
+
+            if (users[username]) {
+                errorMsg.textContent = "Пользователь с таким именем уже существует.";
+                return;
+            }
+
+            users[username] = { password, data: [] };
+            localStorage.setItem("users", JSON.stringify(users));
+
+            alert("Регистрация успешна! Войдите в систему.");
+            showLogin();
+        }
+
+        // Вход пользователя
+        function loginUser() {
+            const username = document.getElementById("login-username").value.trim();
+            const password = document.getElementById("login-password").value.trim();
+            const errorMsg = document.getElementById("login-error");
+
+            if (!username || !password) {
+                errorMsg.textContent = "Введите имя пользователя и пароль.";
+                return;
+            }
+
+            const users = JSON.parse(localStorage.getItem("users")) || {};
+
+            if (!users[username]) {
+                errorMsg.textContent = "Пользователь не найден.";
+                return;
+            }
+
+            if (users[username].password !== password) {
+                errorMsg.textContent = "Неверный пароль.";
+                return;
+            }
+
+            currentUser = username;
+            loadUserData();
+            showApp();
+        }
+
+        // Сохранение данных пользователя
+        function saveUserData() {
+            if (!currentUser) return;
+
+            const rows = Array.from(document.querySelectorAll("#time-table tr"));
+            const userData = rows.map(row => {
+                const name = row.querySelector(".name")?.value || "";
+                const currentTime = row.querySelector(".current-time")?.value || "";
+                const interval = row.querySelector(".interval")?.value || "";
+                return { name, currentTime, interval };
+            });
+
+            const users = JSON.parse(localStorage.getItem("users")) || {};
+            users[currentUser].data = userData;
+            localStorage.setItem("users", JSON.stringify(users));
+        }
+
+        // Загрузка данных пользователя
+        function loadUserData() {
+            const users = JSON.parse(localStorage.getItem("users")) || {};
+            const userData = users[currentUser]?.data || [];
+
+            const table = document.getElementById("time-table");
+            table.innerHTML = ""; // Очищаем таблицу
+
+            if (userData.length === 0) {
+                addRow(); // Если данных нет, добавляем одну пустую строку
+            } else {
+                userData.forEach(data => {
+                    const row = createRow(data.name, data.currentTime, data.interval);
+                    table.appendChild(row);
+                });
+            }
+        }
+
+        // Создание строки таблицы
+        function createRow(name = "", currentTime = "", interval = "") {
+            const row = document.createElement("tr");
+
+            row.innerHTML = `
+                <td><input type="text" class="name" value="${name}" placeholder="Название"></td>
+                <td><input type="time" class="current-time" value="${currentTime}"></td>
+                <td><input type="number" class="interval" value="${interval}" placeholder="Интервал (мин)" /></td>
+                <td class="next-time">--:--</td>
+                <td>
+                    <button class="btn start-sync" onclick="calculateNextTime(this.closest('tr'))">Рассчитать</button>
+                    <button class="btn stop stop-sync hidden" onclick="stopSync(this.closest('tr'))">Отключить</button>
+                    <button class="btn" onclick="resetRow(this.closest('tr'))">Обнулить строку</button>
+                </td>
+            `;
+
+            return row;
+        }
+
+        // Добавление новой строки
+        function addRow() {
+            const table = document.getElementById("time-table");
+            const row = createRow();
+            table.appendChild(row);
+        }
+
+        // Сброс строки
+        function resetRow(row) {
+            row.querySelector(".name").value = "";
+            row.querySelector(".current-time").value = "";
+            row.querySelector(".interval").value = "";
+            row.querySelector(".next-time").textContent = "--:--";
+        }
+
+        // Сброс всех строк
+        function resetAllRows() {
+            const table = document.getElementById("time-table");
+            table.innerHTML = ""; // Очищаем таблицу
+            addRow(); // Добавляем одну пустую строку
+        }
+
+        // Расчёт следующего времени
         function calculateNextTime(row) {
             const currentTimeInput = row.querySelector(".current-time");
             const intervalInput = row.querySelector(".interval");
@@ -63,109 +203,97 @@
                 return;
             }
 
-            let [hours, minutes] = currentTimeInput.value.split(":").map(Number);
+            const [hours, minutes] = currentTimeInput.value.split(":").map(Number);
             const initialTime = new Date();
-            initialTime.setHours(hours, minutes, 0);
+            initialTime.setHours(hours, minutes, 0, 0);
 
             const nextTime = new Date(initialTime.getTime() + interval * 60 * 1000);
             updateTimeDisplay(nextTime, nextTimeOutput);
 
-            // Начинаем процесс синхронизации
-            startSync(row, interval);
+            row.querySelector(".stop-sync").classList.remove("hidden");
         }
 
-        function startSync(row, interval) {
-            const currentTimeInput = row.querySelector(".current-time");
-            const nextTimeOutput = row.querySelector(".next-time");
-            const stopButton = row.querySelector(".stop-sync");
-
-            // Очищаем предыдущий интервал, если он существует
-            if (row.syncIntervalId) {
-                clearInterval(row.syncIntervalId);
-            }
-
-            row.syncIntervalId = setInterval(() => {
-                const systemTime = new Date();
-                const nextTime = new Date(systemTime.getTime() + interval * 60 * 1000);
-
-                updateTimeDisplay(systemTime, currentTimeInput);
-                updateTimeDisplay(nextTime, nextTimeOutput);
-
-                // Проверяем, осталось ли 5 минут до следующего времени
-                const timeDifference = Math.floor((nextTime - systemTime) / (60 * 1000));
-                if (timeDifference <= 5) {
-                    nextTimeOutput.classList.add("green");
-                } else {
-                    nextTimeOutput.classList.remove("green");
-                }
-            }, 1000); // Проверяем каждую секунду для обновления состояния
-
-            // Показываем кнопку остановки
-            stopButton.style.display = "inline-block";
-        }
-
+        // Отключение синхронизации
         function stopSync(row) {
-            const stopButton = row.querySelector(".stop-sync");
-
-            if (row.syncIntervalId) {
-                clearInterval(row.syncIntervalId);
-                row.syncIntervalId = null;
-            }
-
-            // Скрываем кнопку остановки
-            stopButton.style.display = "none";
+            row.querySelector(".next-time").textContent = "--:--";
+            row.querySelector(".stop-sync").classList.add("hidden");
         }
 
+        // Обновление отображения времени
         function updateTimeDisplay(time, element) {
             const hours = String(time.getHours()).padStart(2, "0");
             const minutes = String(time.getMinutes()).padStart(2, "0");
             element.textContent = `${hours}:${minutes}`;
         }
 
-        function addRow() {
-            const table = document.getElementById("time-table");
-            const row = document.createElement("tr");
-
-            row.innerHTML = `
-                <td><input type="text" class="name" placeholder="Название"></td>
-                <td><input type="time" class="current-time"></td>
-                <td><input type="number" class="interval" placeholder="Интервал (мин)" /></td>
-                <td class="next-time">--:--</td>
-                <td>
-                    <button class="btn start-sync" onclick="calculateNextTime(this.closest('tr'))">Рассчитать</button>
-                    <button class="btn stop stop-sync" style="display:none;" onclick="stopSync(this.closest('tr'))">Отключить</button>
-                </td>
-            `;
-
-            table.appendChild(row);
+        function showRegister() {
+            document.getElementById("register").classList.remove("hidden");
+            document.getElementById("login").classList.add("hidden");
+            document.getElementById("app").classList.add("hidden");
         }
+
+        function showLogin() {
+            document.getElementById("register").classList.add("hidden");
+            document.getElementById("login").classList.remove("hidden");
+            document.getElementById("app").classList.add("hidden");
+        }
+
+        function showApp() {
+            document.getElementById("register").classList.add("hidden");
+            document.getElementById("login").classList.add("hidden");
+            document.getElementById("app").classList.remove("hidden");
+        }
+
+        window.addEventListener("beforeunload", saveUserData);
     </script>
 </head>
 <body>
-    <h1>Калькулятор времени с синхронизацией</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Название</th>
-                <th>Текущее время</th>
-                <th>Интервал (минуты)</th>
-                <th>Следующее время</th>
-                <th>Действие</th>
-            </tr>
-        </thead>
-        <tbody id="time-table">
-            <tr>
-                <td><input type="text" class="name" placeholder="Название"></td>
-                <td><input type="time" class="current-time"></td>
-                <td><input type="number" class="interval" placeholder="Интервал (мин)" /></td>
-                <td class="next-time">--:--</td>
-                <td>
-                    <button class="btn start-sync" onclick="calculateNextTime(this.closest('tr'))">Рассчитать</button>
-                    <button class="btn stop stop-sync" style="display:none;" onclick="stopSync(this.closest('tr'))">Отключить</button>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-    <button class="btn" onclick="addRow()">Добавить строку</button>
+    <div id="register">
+        <h2>Регистрация</h2>
+        <input type="text" id="reg-username" placeholder="Имя пользователя"><br>
+        <input type="password" id="reg-password" placeholder="Пароль"><br>
+        <button class="btn" onclick="registerUser()">Зарегистрироваться</button>
+        <p class="error" id="reg-error"></p>
+        <p>Уже есть аккаунт? <a href="#" onclick="showLogin()">Войти</a></p>
+    </div>
+
+    <div id="login" class="hidden">
+        <h2>Вход</h2>
+        <input type="text" id="login-username" placeholder="Имя пользователя"><br>
+        <input type="password" id="login-password" placeholder="Пароль"><br>
+        <button class="btn" onclick="loginUser()">Войти</button>
+        <p class="error" id="login-error"></p>
+        <p>Нет аккаунта? <a href="#" onclick="showRegister()">Зарегистрироваться</a></p>
+    </div>
+
+    <div id="app" class="hidden">
+        <h1>Калькулятор времени</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Название</th>
+                    <th>Текущее время</th>
+                    <th>Интервал (минуты)</th>
+                    <th>Следующее время</th>
+                    <th>Действие</th>
+                </tr>
+            </thead>
+            <tbody id="time-table"></tbody>
+        </table>
+        <button class="btn" onclick="addRow()">Добавить строку</button>
+        <button class="btn stop" onclick="resetAllRows()">Обнулить все строки</button>
+
+        <!-- Инструкции -->
+        <div class="instructions">
+            <h3>Инструкция к кнопкам:</h3>
+            <ul>
+                <li><b>Рассчитать:</b> Рассчитывает следующее время, добавив интервал к текущему времени.</li>
+                <li><b>Отключить:</b> Сбрасывает следующее время для строки и скрывает кнопку "Отключить".</li>
+                <li><b>Обнулить строку:</b> Очистит все данные в строке (название, время, интервал).</li>
+                <li><b>Добавить строку:</b> Добавляет новую строку для ввода данных.</li>
+                <li><b>Обнулить все строки:</b> Очистит все строки в таблице.</li>
+            </ul>
+        </div>
+    </div>
 </body>
 </html>
