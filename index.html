@@ -57,9 +57,15 @@
         .instructions h3 {
             margin-bottom: 10px;
         }
+        .highlight {
+            background-color: lightgreen; /* Зеленый цвет для подсветки */
+        }
     </style>
     <script>
         let currentUser = null;
+
+        // Звуковой сигнал
+        const alertSound = new Audio('https://www.soundjay.com/button/beep-07.wav'); // Сигнал
 
         // Регистрация пользователя
         function registerUser() {
@@ -123,7 +129,8 @@
                 const name = row.querySelector(".name")?.value || "";
                 const currentTime = row.querySelector(".current-time")?.value || "";
                 const interval = row.querySelector(".interval")?.value || "";
-                return { name, currentTime, interval };
+                const soundOff = row.querySelector(".sound-off")?.checked || false;
+                return { name, currentTime, interval, soundOff };
             });
 
             const users = JSON.parse(localStorage.getItem("users")) || {};
@@ -143,14 +150,47 @@
                 addRow(); // Если данных нет, добавляем одну пустую строку
             } else {
                 userData.forEach(data => {
-                    const row = createRow(data.name, data.currentTime, data.interval);
+                    const row = createRow(data.name, data.currentTime, data.interval, data.soundOff);
                     table.appendChild(row);
                 });
             }
+
+            setInterval(checkTimeRemaining, 1000); // Запускаем проверку времени каждую секунду
+        }
+
+        // Проверка оставшегося времени
+        function checkTimeRemaining() {
+            const rows = document.querySelectorAll("#time-table tr");
+            rows.forEach(row => {
+                const nextTimeText = row.querySelector(".next-time").textContent;
+                const nextTimeParts = nextTimeText.split(":");
+
+                if (nextTimeParts.length === 2) {
+                    const nextTime = new Date();
+                    const hours = parseInt(nextTimeParts[0]);
+                    const minutes = parseInt(nextTimeParts[1]);
+                    nextTime.setHours(hours, minutes, 0, 0);
+
+                    const currentTime = new Date();
+                    const timeDifference = nextTime - currentTime;
+
+                    const soundOff = row.querySelector(".sound-off").checked;
+
+                    if (timeDifference <= 1 * 60 * 1000 && timeDifference > 0) { // Менее 1 минуты
+                        // Менее 1 минуты
+                        row.classList.add("highlight");
+                        if (!soundOff) {
+                            alertSound.play(); // Проигрываем звуковой сигнал, если не отключено
+                        }
+                    } else {
+                        row.classList.remove("highlight");
+                    }
+                }
+            });
         }
 
         // Создание строки таблицы
-        function createRow(name = "", currentTime = "", interval = "") {
+        function createRow(name = "", currentTime = "", interval = "", soundOff = false) {
             const row = document.createElement("tr");
 
             row.innerHTML = `
@@ -162,6 +202,10 @@
                     <button class="btn start-sync" onclick="calculateNextTime(this.closest('tr'))">Рассчитать</button>
                     <button class="btn stop stop-sync hidden" onclick="stopSync(this.closest('tr'))">Отключить</button>
                     <button class="btn" onclick="resetRow(this.closest('tr'))">Обнулить строку</button>
+                    <label>
+                        <input type="checkbox" class="sound-off" ${soundOff ? 'checked' : ''}>
+                        Отключить звук
+                    </label>
                 </td>
             `;
 
@@ -173,21 +217,6 @@
             const table = document.getElementById("time-table");
             const row = createRow();
             table.appendChild(row);
-        }
-
-        // Сброс строки
-        function resetRow(row) {
-            row.querySelector(".name").value = "";
-            row.querySelector(".current-time").value = "";
-            row.querySelector(".interval").value = "";
-            row.querySelector(".next-time").textContent = "--:--";
-        }
-
-        // Сброс всех строк
-        function resetAllRows() {
-            const table = document.getElementById("time-table");
-            table.innerHTML = ""; // Очищаем таблицу
-            addRow(); // Добавляем одну пустую строку
         }
 
         // Расчёт следующего времени
@@ -216,7 +245,6 @@
 
         // Отключение синхронизации
         function stopSync(row) {
-            // Останавливаем синхронизацию, но не сбрасываем время
             row.querySelector(".next-time").textContent = row.querySelector(".next-time").textContent;
             row.querySelector(".stop-sync").classList.add("hidden");
             row.querySelector(".start-sync").classList.remove("hidden");
